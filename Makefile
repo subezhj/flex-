@@ -21,13 +21,15 @@ endef
 TARGET = iphone:clang:latest:13.0
 ARCHS = arm64 arm64e
 
-LIBRARY_NAME = FLEX_pp
-LIBRARY_TYPE = dynamic
-
+FLEX_VERSION := $(shell awk -F': *' '$$1 == "Version" { print $$2; exit }' control)
 export THEOS_PACKAGE_SCHEME = rootless
 THEOS_PACKAGE_INSTALL_PREFIX = /var/jb
-
 export THEOS_PACKAGE_DIR = $(CURDIR)/packages
+
+include $(THEOS)/makefiles/common.mk
+
+LIBRARY_NAME = FLEX_pp
+LIBRARY_TYPE = dynamic
 
 FLEX_pp_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
 
@@ -76,13 +78,12 @@ FLEX_pp_CCFLAGS = -std=c++17 -Wno-unused-function -Wno-objc-missing-property-syn
 FLEX_pp_OBJCFLAGS = -fobjc-arc
 FLEX_pp_CFLAGS += -miphoneos-version-min=9.0
 
-include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/library.mk
 
 after-package::
 	@mkdir -p packages
-	@if [ -f ".theos/obj/FLEX_pp.dylib" ]; then \
-		cp -f ".theos/obj/FLEX_pp.dylib" packages/FLEX++.dylib; \
-		cp -f ".theos/obj/FLEX_pp.dylib" packages/FLEX++_1.0.0.dylib; \
-	fi
+	@find .theos -name '*FLEX*.dylib' -exec cp -f {} packages/FLEX++.dylib \; 2>/dev/null || true
+	@find .theos -name '*FLEX*.dylib' -exec cp -f {} packages/FLEX++_1.0.0.dylib \; 2>/dev/null || true
+	@DEB=$$(find .theos -name '*.deb' 2>/dev/null | head -1); \
+	 if [ -n "$$DEB" ] && [ -f "$$DEB" ]; then cp -f "$$DEB" packages/FLEX++_1.0.0.deb; fi
 
