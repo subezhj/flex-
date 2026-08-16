@@ -1,9 +1,9 @@
-name: publish FLEX++ release
+name: publish release
 
 on:
   workflow_run:
     workflows:
-      - build FLEX++ packages
+      - build
     types:
       - completed
     branches:
