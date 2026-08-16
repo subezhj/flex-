@@ -18,7 +18,7 @@ define Package/com.pxx917144686.flex
   Description: FLEX调试工具
 endef
 
-TARGET = iphone:clang:latest:13.0
+TARGET = iphone:clang:latest:14.0
 ARCHS = arm64 arm64e
 
 FLEX_VERSION := $(shell awk -F': *' '$$1 == "Version" { print $$2; exit }' control)
@@ -69,6 +69,7 @@ FLEX_pp_CFLAGS = -fobjc-arc -include flex_fishhook.h \
                  -Wno-nonnull \
                  -Wno-format \
                  -Wno-shift-op-parentheses \
+                 -Wno-overriding-option \
                  -DCAPSTONE_HAS_AARCH64 \
                  -DCAPSTONE_USE_SYS_DYN_MEM \
                  -I./x \
@@ -76,7 +77,6 @@ FLEX_pp_CFLAGS = -fobjc-arc -include flex_fishhook.h \
 
 FLEX_pp_CCFLAGS = -std=c++17 -Wno-unused-function -Wno-objc-missing-property-synthesis
 FLEX_pp_OBJCFLAGS = -fobjc-arc
-FLEX_pp_CFLAGS += -miphoneos-version-min=9.0
 
 include $(THEOS_MAKE_PATH)/library.mk
 
