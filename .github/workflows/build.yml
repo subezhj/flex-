@@ -4,13 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '**/*.m'
-      - '**/*.mm'
-      - '**/*.h'
-      - 'Makefile'
-      - 'control'
-      - '.github/**'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +12,6 @@ permissions:
 
 jobs:
   build:
-    # Standard GitHub Actions macOS runner
     runs-on: macos-latest
 
     steps:
@@ -61,7 +53,7 @@ jobs:
       - name: Upload FLEX++ artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: FLEX++-${{ steps.package.outputs.version }}-${{ github.run_number }}
+          name: FLEX-pp-${{ steps.package.outputs.version }}-${{ github.run_number }}
           path: |
             packages/*.deb
             packages/*.dylib

@@ -18,28 +18,21 @@ define Package/com.pxx917144686.flex
   Description: FLEX调试工具
 endef
 
-# 支持更旧版本的iOS设备(从15.6降到9.0)
-TARGET = iphone:latest:9.0
-ARCHS = arm64
+TARGET = iphone:clang:latest:13.0
+ARCHS = arm64 arm64e
 
-# 名称和类型
-LIBRARY_NAME = FLEX++
-
-# 动态库类型 - 兼容各种越狱环境
+LIBRARY_NAME = FLEX_pp
 LIBRARY_TYPE = dynamic
 
-# 直接输出到当前目录
-export THEOS_PACKAGE_DIR = $(CURDIR)
-
-# Rootless
 export THEOS_PACKAGE_SCHEME = rootless
 THEOS_PACKAGE_INSTALL_PREFIX = /var/jb
 
-# 设置路径
-$(LIBRARY_NAME)_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
+export THEOS_PACKAGE_DIR = $(CURDIR)/packages
+
+FLEX_pp_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
 
 # 包含所有源文件（排除FLEX原版和重复文件）
-$(LIBRARY_NAME)_FILES = $(shell find . \( -name '*.m' -o -name '*.mm' -o -name '*.c' \) | \
+FLEX_pp_FILES = $(shell find . \( -name '*.m' -o -name '*.mm' -o -name '*.c' \) | \
     grep -v "^./FLEX/" | \
     grep -v "x/retdec/" | \
     grep -v "x/retdec-build/" | \
@@ -50,18 +43,13 @@ $(LIBRARY_NAME)_FILES = $(shell find . \( -name '*.m' -o -name '*.mm' -o -name '
 # Capstone核心文件（只包含ARM/ARM64架构）
 CAPSTONE_CORE = $(shell find x/capstone -maxdepth 1 -name "*.c")
 CAPSTONE_ARCH = $(shell find x/capstone/arch/AArch64 -name "*.c")
-$(LIBRARY_NAME)_FILES += $(CAPSTONE_CORE) $(CAPSTONE_ARCH)
+FLEX_pp_FILES += $(CAPSTONE_CORE) $(CAPSTONE_ARCH)
 
-# 必要的框架和库
-$(LIBRARY_NAME)_FRAMEWORKS = Foundation UIKit CoreGraphics CoreFoundation
-$(LIBRARY_NAME)_PRIVATE_FRAMEWORKS = 
+FLEX_pp_FRAMEWORKS = Foundation UIKit CoreGraphics CoreFoundation
+FLEX_pp_LIBRARIES = system xml2
 
-# 系统库
-$(LIBRARY_NAME)_LIBRARIES = system xml2
-
-# 链接器标志
-$(LIBRARY_NAME)_LDFLAGS += -Wl,-no_warn_inits,-search_paths_first,-headerpad_max_install_names
-$(LIBRARY_NAME)_CFLAGS = -fobjc-arc -include flex_fishhook.h \
+FLEX_pp_LDFLAGS += -Wl,-no_warn_inits,-search_paths_first,-headerpad_max_install_names
+FLEX_pp_CFLAGS = -fobjc-arc -include flex_fishhook.h \
                  -DFLEX_LIVE_OBJECTS_CONTROLLER_IS_VIEW_CONTROLLER=1 \
                  -DFLEX_LIVE_OBJECTS_VIEW_CONTROLLER=FLEXLiveObjectsController \
                  -Wno-unsupported-availability-guard \
@@ -84,12 +72,17 @@ $(LIBRARY_NAME)_CFLAGS = -fobjc-arc -include flex_fishhook.h \
                  -I./x \
                  -I./x/capstone/include
 
-# 编译兼容性
-$(LIBRARY_NAME)_CCFLAGS = -std=c++17 -Wno-unused-function -Wno-objc-missing-property-synthesis
-$(LIBRARY_NAME)_OBJCFLAGS = -fobjc-arc
-
-# 兼容性
-$(LIBRARY_NAME)_CFLAGS += -miphoneos-version-min=9.0
+FLEX_pp_CCFLAGS = -std=c++17 -Wno-unused-function -Wno-objc-missing-property-synthesis
+FLEX_pp_OBJCFLAGS = -fobjc-arc
+FLEX_pp_CFLAGS += -miphoneos-version-min=9.0
 
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/library.mk
+
+after-package::
+	@mkdir -p packages
+	@if [ -f ".theos/obj/FLEX_pp.dylib" ]; then \
+		cp -f ".theos/obj/FLEX_pp.dylib" packages/FLEX++.dylib; \
+		cp -f ".theos/obj/FLEX_pp.dylib" packages/FLEX++_1.0.0.dylib; \
+	fi
+
