@@ -8,17 +8,15 @@ theos_sdks=${THEOS_SDKS:-"https://github.com/theos/sdks"}
 theos_sdks_branch=${THEOS_SDKS_BRANCH:-"master"}
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-    echo "DYKiller CI builds require a macOS runner." >&2
+    echo "FLEX++ CI builds require a macOS runner." >&2
     exit 1
 fi
 
-# Theos resolves `latest` to the newest SDK across Xcode and ${THEOS}/sdks, and the theos/sdks
-# repo tops out at iPhoneOS16.5.sdk — so the effective SDK is whatever Xcode the runner ships.
-# Fail here with one clear line instead of a wall of `use of undeclared identifier` later.
-min_ios_sdk=${DYKILLER_MIN_IOS_SDK:-26}
+# Set SDK check threshold to 14 (valid for iOS 13+ / 16+ features)
+min_ios_sdk=${FLEX_MIN_IOS_SDK:-14}
 sdk_version=$(xcrun --sdk iphoneos --show-sdk-version)
 if [[ "${sdk_version%%.*}" -lt "${min_ios_sdk}" ]]; then
-    echo "DYKiller requires an iOS ${min_ios_sdk}+ SDK (UIGlassEffect / UICornerConfiguration); Xcode provides ${sdk_version}." >&2
+    echo "FLEX++ requires an iOS ${min_ios_sdk}+ SDK; Xcode provides ${sdk_version}." >&2
     echo "  runner: $(sw_vers -productVersion), xcode: $(xcodebuild -version | head -1)" >&2
     exit 1
 fi
@@ -54,4 +52,4 @@ if ! find "${theos_dir}/sdks" -maxdepth 1 -type d -name '*.sdk' | grep -q .; the
     find "${work_dir}/sdks" -maxdepth 2 -type d -name '*.sdk' -exec cp -R {} "${theos_dir}/sdks/" \;
 fi
 
-echo "DYKiller Theos environment is ready at ${theos_dir}."
+echo "FLEX++ Theos environment is ready at ${theos_dir}."

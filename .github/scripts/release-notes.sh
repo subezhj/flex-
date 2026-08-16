@@ -12,11 +12,9 @@ if [[ -z "${version}" ]]; then
 fi
 
 cat > "${notes_file}" <<NOTES
-## DYKiller ${version}
+## FLEX++ ${version}
 
 - Commit: \`${release_sha}\`
-- Rootful: \`DYKiller_${version}_arm-rootful.deb\`
-- Rootless: \`DYKiller_${version}_arm64-rootless.deb\`
-- Roothide: \`DYKiller_${version}_arm64e-roothide.deb\`
-- Dylib: \`DYKiller_${version}.dylib\`
+- Deb Package: \`FLEX++_${version}.deb\`
+- Dynamic Library: \`FLEX++_${version}.dylib\`
 NOTES
