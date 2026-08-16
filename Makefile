@@ -70,6 +70,7 @@ FLEX_pp_CFLAGS = -fobjc-arc -include flex_fishhook.h \
                  -Wno-format \
                  -Wno-shift-op-parentheses \
                  -Wno-overriding-option \
+                 -Wno-objc-property-implementation \
                  -DCAPSTONE_HAS_AARCH64 \
                  -DCAPSTONE_USE_SYS_DYN_MEM \
                  -I./x \

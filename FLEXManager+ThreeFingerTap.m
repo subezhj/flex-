@@ -31,6 +31,10 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
     }
 }
 
++ (void)setIsThreeFingerTapEnabled:(BOOL)enabled {
+    [self setThreeFingerTapEnabled:enabled];
+}
+
 + (void)load {
     if ([NSThread isMainThread]) {
         [self flex_setupGesture];
