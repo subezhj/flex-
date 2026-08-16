@@ -1,6 +1,10 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+#ifndef FLEX_AT_LEAST_IOS13_SDK
+#define FLEX_AT_LEAST_IOS13_SDK (__IPHONE_OS_VERSION_MAX_ALLOWED >= 130000)
+#endif
+
 // iOS版本检查宏
 #define FLEX_AT_LEAST_IOS11 (@available(iOS 11.0, *))
 #define FLEX_AT_LEAST_IOS13 (@available(iOS 13.0, *))

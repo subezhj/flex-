@@ -136,6 +136,7 @@
 #pragma mark - Liquid Glass Theme Colors (iOS 16+/26+)
 
 + (UIColor *)glassBackgroundColor {
+#if FLEX_AT_LEAST_IOS13_SDK
     if (@available(iOS 13.0, *)) {
         return [UIColor colorWithDynamicProvider:^UIColor * _Nonnull(UITraitCollection * _Nonnull traitCollection) {
             if (traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
@@ -144,12 +145,13 @@
                 return [UIColor colorWithWhite:0.98 alpha:0.75];
             }
         }];
-    } else {
-        return [UIColor colorWithWhite:0.95 alpha:0.85];
     }
+#endif
+    return [UIColor colorWithWhite:0.95 alpha:0.85];
 }
 
 + (UIColor *)glassBorderColor {
+#if FLEX_AT_LEAST_IOS13_SDK
     if (@available(iOS 13.0, *)) {
         return [UIColor colorWithDynamicProvider:^UIColor * _Nonnull(UITraitCollection * _Nonnull traitCollection) {
             if (traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
@@ -158,12 +160,13 @@
                 return [UIColor colorWithWhite:1.0 alpha:0.45];
             }
         }];
-    } else {
-        return [UIColor colorWithWhite:1.0 alpha:0.3];
     }
+#endif
+    return [UIColor colorWithWhite:1.0 alpha:0.3];
 }
 
 + (UIColor *)glassCardBackgroundColor {
+#if FLEX_AT_LEAST_IOS13_SDK
     if (@available(iOS 13.0, *)) {
         return [UIColor colorWithDynamicProvider:^UIColor * _Nonnull(UITraitCollection * _Nonnull traitCollection) {
             if (traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
@@ -172,9 +175,9 @@
                 return [UIColor colorWithWhite:1.0 alpha:0.65];
             }
         }];
-    } else {
-        return [UIColor colorWithWhite:1.0 alpha:0.75];
     }
+#endif
+    return [UIColor colorWithWhite:1.0 alpha:0.75];
 }
 
 @end

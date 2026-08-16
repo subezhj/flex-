@@ -11,6 +11,7 @@
 #import "FLEXExplorerToolbarItem.h"
 #import "FLEXResources.h"
 #import "FLEXUtility.h"
+#import "FLEXCompatibility.h"
 
 // x功能模块
 #import "x/ClassDump/UCClassDumpTool.h"
@@ -59,15 +60,20 @@
     self = [super initWithFrame:frame];
     if (self) {
         // Background - iOS 16+/26+ 液态玻璃 (Liquid Glass) 样式
+        BOOL createdBlur = NO;
+#if FLEX_AT_LEAST_IOS13_SDK
         if (@available(iOS 13.0, *)) {
-            UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterial];
+            UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:FLEXBlurEffectStyleSystemThinMaterial];
             UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
             blurView.clipsToBounds = YES;
             blurView.layer.cornerRadius = 16.0;
             blurView.layer.borderWidth = 0.5;
             blurView.layer.borderColor = [FLEXColor glassBorderColor].CGColor;
             self.backgroundView = blurView;
-        } else {
+            createdBlur = YES;
+        }
+#endif
+        if (!createdBlur) {
             self.backgroundView = [UIView new];
             self.backgroundView.backgroundColor = [FLEXColor secondaryBackgroundColorWithAlpha:0.92];
             self.backgroundView.layer.cornerRadius = 14.0;
@@ -106,15 +112,20 @@
         [self.secondRowDragHandle addSubview:self.secondRowDragHandleImageView];
         
         // 第二行背景 - 包含 dragHandle 和按钮，适配液态玻璃
+        BOOL createdSecondBlur = NO;
+#if FLEX_AT_LEAST_IOS13_SDK
         if (@available(iOS 13.0, *)) {
-            UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterial];
+            UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:FLEXBlurEffectStyleSystemThinMaterial];
             UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
             blurView.clipsToBounds = YES;
             blurView.layer.cornerRadius = 16.0;
             blurView.layer.borderWidth = 0.5;
             blurView.layer.borderColor = [FLEXColor glassBorderColor].CGColor;
             self.secondRowBackground = blurView;
-        } else {
+            createdSecondBlur = YES;
+        }
+#endif
+        if (!createdSecondBlur) {
             self.secondRowBackground = [[UIView alloc] init];
             self.secondRowBackground.backgroundColor = [FLEXColor secondaryBackgroundColorWithAlpha:0.92];
             self.secondRowBackground.layer.cornerRadius = 14.0;
