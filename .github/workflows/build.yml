@@ -1,0 +1,69 @@
+name: build FLEX++ packages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.m'
+      - '**/*.mm'
+      - '**/*.h'
+      - 'Makefile'
+      - 'control'
+      - '.github/**'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    # Pinned on purpose: the glass tab bar needs an iOS 26 SDK, and the macos-latest label
+    # migrates gradually — falling back to macOS 15 breaks the build on undeclared symbols.
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve FLEX++ version
+        id: package
+        run: |
+          version=$(awk -F': *' '$1 == "Version" { print $2; exit }' control)
+          if [ -z "$version" ]; then
+            echo "Unable to read Version from control" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve Theos cache key
+        run: |
+          theos_head=$(git ls-remote https://github.com/roothide/theos HEAD | cut -f 1)
+          sdks_head=$(git ls-remote https://github.com/theos/sdks HEAD | cut -f 1)
+          echo "THEOS_CACHE_KEY=${{ runner.os }}-${theos_head}-${sdks_head}" >> "$GITHUB_ENV"
+
+      - name: Cache FLEX++ Theos toolchain
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/theos
+          key: ${{ env.THEOS_CACHE_KEY }}
+
+      - name: Setup FLEX++ Theos toolchain
+        run: bash .github/scripts/setup-theos.sh
+
+      - name: Build FLEX++ release assets
+        run: bash .github/scripts/build-packages.sh
+
+      - name: Verify FLEX++ release assets
+        run: bash .github/scripts/verify-assets.sh
+
+      - name: Upload FLEX++ artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FLEX++-${{ steps.package.outputs.version }}-${{ github.run_number }}
+          path: |
+            packages/*.deb
+            packages/*.dylib
+
