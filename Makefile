@@ -33,8 +33,10 @@ LIBRARY_TYPE = dynamic
 
 FLEX_pp_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
 
-# 包含所有源文件（排除FLEX原版和重复文件）
+# 包含所有源文件（排除FLEX原版、Theos工具链及重复文件）
 FLEX_pp_FILES = $(shell find . \( -name '*.m' -o -name '*.mm' -o -name '*.c' \) | \
+    grep -v "^./theos/" | \
+    grep -v "/theos/" | \
     grep -v "^./FLEX/" | \
     grep -v "x/retdec/" | \
     grep -v "x/retdec-build/" | \
