@@ -9,10 +9,12 @@ make all package FINALPACKAGE=1 || make package FINALPACKAGE=1 || true
 
 version=$(awk -F': *' '$1 == "Version" { print $2; exit }' control)
 
-if [[ ! -f "packages/FLEX++.dylib" ]]; then
+# Clean up any unversioned dylib
+rm -f packages/FLEX++.dylib
+
+if [[ ! -f "packages/FLEX++_${version}.dylib" ]]; then
     dylib_file=$(find .theos -name '*.dylib' 2>/dev/null | head -1)
     if [[ -n "${dylib_file}" && -f "${dylib_file}" ]]; then
-        cp -f "${dylib_file}" packages/FLEX++.dylib
         cp -f "${dylib_file}" "packages/FLEX++_${version}.dylib"
     fi
 fi

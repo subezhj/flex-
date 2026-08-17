@@ -110,7 +110,6 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
     
     if (!topVC) return;
     
-    // 监测窗口上是否存在其他 3 指手势识别器
     BOOL hasOtherThreeFingerGestures = NO;
     for (UIGestureRecognizer *g in targetWindow.gestureRecognizers) {
         if (g != flex_threeFingerLongPressGesture) {
@@ -125,44 +124,25 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
         }
     }
     
-    NSString *message = hasOtherThreeFingerGestures
-        ? @"检测到当前界面存在其他插件的三指手势，请选择您要调出的调试工具："
-        : @"检测到三指轻敲手势，请选择需要执行的操作：";
+    FLEXThreeFingerGlassMenuViewController *menuVC = [FLEXThreeFingerGlassMenuViewController new];
+    menuVC.hasOtherThreeFingerGestures = hasOtherThreeFingerGestures;
+    menuVC.modalPresentationStyle = UIModalPresentationOverFullScreen;
+    menuVC.modalTransitionStyle = UIModalTransitionCrossDissolve;
     
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"💡 三指轻敲手势调出"
-                                                                   message:message
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    
-    [alert addAction:[UIAlertAction actionWithTitle:@"打开 FLEX++ 调试面板"
-                                              style:UIAlertActionStyleDefault
-                                            handler:^(UIAlertAction * _Nonnull action) {
+    menuVC.onOpenFLEX = ^{
         if ([FLEXManager sharedManager]) {
             [[FLEXManager sharedManager] toggleExplorer];
         }
-    }]];
+    };
+    menuVC.onOpenOther = ^{
+        // 允许传递给其他插件
+    };
+    menuVC.onToggleGesture = ^{
+        BOOL current = [FLEXManager isThreeFingerTapEnabled];
+        [FLEXManager setThreeFingerTapEnabled:!current];
+    };
     
-    if (hasOtherThreeFingerGestures) {
-        [alert addAction:[UIAlertAction actionWithTitle:@"打开其他调试工具"
-                                                  style:UIAlertActionStyleDefault
-                                                handler:^(UIAlertAction * _Nonnull action) {
-            // 允许手势向下传递或让其他插件接收
-        }]];
-    }
-    
-    [alert addAction:[UIAlertAction actionWithTitle:@"关闭三指唤醒功能"
-                                              style:UIAlertActionStyleDestructive
-                                            handler:^(UIAlertAction * _Nonnull action) {
-        [FLEXManager setThreeFingerTapEnabled:NO];
-        UIAlertController *confirm = [UIAlertController alertControllerWithTitle:@"已关闭三指唤醒"
-                                                                         message:@"三指唤醒已停用。你随时可在 FLEX++ 设置或插件菜单中重新开启。"
-                                                                  preferredStyle:UIAlertControllerStyleAlert];
-        [confirm addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleCancel handler:nil]];
-        [topVC presentViewController:confirm animated:YES completion:nil];
-    }]];
-    
-    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    
-    [topVC presentViewController:alert animated:YES completion:nil];
+    [topVC presentViewController:menuVC animated:YES completion:nil];
 }
 
 + (UIWindow *)flex_findTargetWindow {

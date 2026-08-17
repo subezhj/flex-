@@ -246,17 +246,7 @@ typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
 
 - (void)setViewsAtTapPoint:(NSArray<UIView *> *)viewsAtTapPoint {
     if (![_viewsAtTapPoint isEqual:viewsAtTapPoint]) {
-        for (UIView *view in _viewsAtTapPoint) {
-            if (view != self.selectedView) {
-                [self stopObservingView:view];
-            }
-        }
-        
         _viewsAtTapPoint = viewsAtTapPoint;
-        
-        for (UIView *view in viewsAtTapPoint) {
-            [self beginObservingView:view];
-        }
     }
 }
 
@@ -297,23 +287,27 @@ typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
         return;
     }
     
-    for (NSString *keyPath in self.viewKeyPathsToTrack) {
-        [view addObserver:self forKeyPath:keyPath options:0 context:nil];
+    @try {
+        for (NSString *keyPath in self.viewKeyPathsToTrack) {
+            [view addObserver:self forKeyPath:keyPath options:0 context:nil];
+        }
+        [self.observedViews addObject:view];
+    } @catch (NSException *exception) {
     }
-    
-    [self.observedViews addObject:view];
 }
 
 - (void)stopObservingView:(UIView *)view {
-    if (!view) {
+    if (!view || ![self.observedViews containsObject:view]) {
         return;
     }
     
-    for (NSString *keyPath in self.viewKeyPathsToTrack) {
-        [view removeObserver:self forKeyPath:keyPath];
+    @try {
+        for (NSString *keyPath in self.viewKeyPathsToTrack) {
+            [view removeObserver:self forKeyPath:keyPath];
+        }
+        [self.observedViews removeObject:view];
+    } @catch (NSException *exception) {
     }
-    
-    [self.observedViews removeObject:view];
 }
 
 - (NSArray<NSString *> *)viewKeyPathsToTrack {
@@ -830,8 +824,21 @@ typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
 - (NSArray<UIView *> *)recursiveSubviewsAtPoint:(CGPoint)pointInView
                                          inView:(UIView *)view
                                 skipHiddenViews:(BOOL)skipHidden {
+    return [self recursiveSubviewsAtPoint:pointInView inView:view skipHiddenViews:skipHidden depth:0];
+}
+
+- (NSArray<UIView *> *)recursiveSubviewsAtPoint:(CGPoint)pointInView
+                                         inView:(UIView *)view
+                                skipHiddenViews:(BOOL)skipHidden
+                                          depth:(NSInteger)depth {
+    if (!view || depth > 40) {
+        return @[];
+    }
+    
     NSMutableArray<UIView *> *subviewsAtPoint = [NSMutableArray new];
     for (UIView *subview in view.subviews) {
+        if (!subview) continue;
+        
         BOOL isHidden = subview.hidden || subview.alpha < 0.01;
         if (skipHidden && isHidden) {
             continue;
@@ -843,10 +850,17 @@ typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
         }
         
         if (subviewContainsPoint || !subview.clipsToBounds) {
-            CGPoint pointInSubview = [view convertPoint:pointInView toView:subview];
-            [subviewsAtPoint addObjectsFromArray:[self
-                recursiveSubviewsAtPoint:pointInSubview inView:subview skipHiddenViews:skipHidden
-            ]];
+            @try {
+                CGPoint pointInSubview = [view convertPoint:pointInView toView:subview];
+                [subviewsAtPoint addObjectsFromArray:[self
+                    recursiveSubviewsAtPoint:pointInSubview inView:subview skipHiddenViews:skipHidden depth:depth + 1
+                ]];
+            } @catch (NSException *e) {
+            }
+        }
+        
+        if (subviewsAtPoint.count > 250) {
+            break;
         }
     }
     return subviewsAtPoint;
