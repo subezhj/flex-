@@ -1,11 +1,166 @@
 #import "FLEXManager+ThreeFingerTap.h"
 #import "FLEXManager.h"
 #import "UIGestureRecognizer+Blocks.h"
+#import "FLEXCompatibility.h"
+#import "FLEXColor.h"
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
 static NSString *const kFLEXThreeFingerTapEnabledUserDefaultsKey = @"FLEXThreeFingerTapEnabledKey";
 static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
+
+@interface FLEXThreeFingerGlassMenuViewController : UIViewController
+@property (nonatomic, assign) BOOL hasOtherThreeFingerGestures;
+@property (nonatomic, copy) void (^onOpenFLEX)(void);
+@property (nonatomic, copy) void (^onOpenOther)(void);
+@property (nonatomic, copy) void (^onToggleGesture)(void);
+@end
+
+@implementation FLEXThreeFingerGlassMenuViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = [UIColor colorWithWhite:0 alpha:0.45];
+    
+    UITapGestureRecognizer *bgTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissSelf)];
+    [self.view addGestureRecognizer:bgTap];
+    
+    [self setupGlassCard];
+}
+
+- (void)setupGlassCard {
+    UIView *cardContainer = [UIView new];
+    cardContainer.translatesAutoresizingMaskIntoConstraints = NO;
+    cardContainer.layer.cornerRadius = 24.0;
+    cardContainer.clipsToBounds = YES;
+    cardContainer.layer.borderWidth = 0.5;
+    cardContainer.layer.borderColor = [FLEXColor glassBorderColor].CGColor;
+    
+    cardContainer.layer.shadowColor = UIColor.blackColor.CGColor;
+    cardContainer.layer.shadowOpacity = 0.25;
+    cardContainer.layer.shadowRadius = 16.0;
+    cardContainer.layer.shadowOffset = CGSizeMake(0, 8);
+    
+    UIVisualEffectView *blurView = nil;
+#if FLEX_AT_LEAST_IOS13_SDK
+    if (@available(iOS 13.0, *)) {
+        blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:FLEXBlurEffectStyleSystemThinMaterial]];
+    }
+#endif
+    if (!blurView) {
+        blurView = [UIVisualEffectView new];
+        blurView.backgroundColor = [UIColor colorWithWhite:0.95 alpha:0.95];
+    }
+    blurView.translatesAutoresizingMaskIntoConstraints = NO;
+    [cardContainer addSubview:blurView];
+    [NSLayoutConstraint activateConstraints:@[
+        [blurView.topAnchor constraintEqualToAnchor:cardContainer.topAnchor],
+        [blurView.bottomAnchor constraintEqualToAnchor:cardContainer.bottomAnchor],
+        [blurView.leadingAnchor constraintEqualToAnchor:cardContainer.leadingAnchor],
+        [blurView.trailingAnchor constraintEqualToAnchor:cardContainer.trailingAnchor]
+    ]];
+    
+    UIStackView *stack = [UIStackView new];
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 12.0;
+    stack.alignment = UIStackViewAlignmentFill;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    [cardContainer addSubview:stack];
+    
+    UILabel *titleLabel = [UILabel new];
+    titleLabel.text = @"✨ FLEX++ 液态调试";
+    titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightBold];
+    titleLabel.textColor = [FLEXColor labelColor];
+    titleLabel.textAlignment = NSTextAlignmentCenter;
+    [stack addArrangedSubview:titleLabel];
+    
+    UILabel *subLabel = [UILabel new];
+    subLabel.text = self.hasOtherThreeFingerGestures
+        ? @"检测到界面存在其他插件的三指手势，请选择："
+        : @"检测到三指手势，请选择要调出的操作：";
+    subLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
+    subLabel.textColor = [FLEXColor secondaryLabelColor];
+    subLabel.textAlignment = NSTextAlignmentCenter;
+    subLabel.numberOfLines = 0;
+    [stack addArrangedSubview:subLabel];
+    
+    UIView *space = [UIView new];
+    [space.heightAnchor constraintEqualToConstant:4].active = YES;
+    [stack addArrangedSubview:space];
+    
+    UIButton *btnFLEX = [self createGlassButtonWithTitle:@"🚀 打开 FLEX++ 调试面板" isDestructive:NO action:@selector(btnFLEXTapped)];
+    [stack addArrangedSubview:btnFLEX];
+    
+    if (self.hasOtherThreeFingerGestures) {
+        UIButton *btnOther = [self createGlassButtonWithTitle:@"⚡ 打开其他调试工具" isDestructive:NO action:@selector(btnOtherTapped)];
+        [stack addArrangedSubview:btnOther];
+    }
+    
+    BOOL isEnabled = [FLEXManager isThreeFingerTapEnabled];
+    NSString *toggleTitle = isEnabled ? @"⚙️ 三指唤醒: 已开启 (点击关闭)" : @"⚙️ 三指唤醒: 已关闭 (点击开启)";
+    UIButton *btnToggle = [self createGlassButtonWithTitle:toggleTitle isDestructive:isEnabled action:@selector(btnToggleTapped)];
+    [stack addArrangedSubview:btnToggle];
+    
+    UIButton *btnCancel = [self createGlassButtonWithTitle:@"✕ 取消" isDestructive:NO action:@selector(dismissSelf)];
+    [stack addArrangedSubview:btnCancel];
+    
+    [self.view addSubview:cardContainer];
+    [NSLayoutConstraint activateConstraints:@[
+        [cardContainer.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [cardContainer.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
+        [cardContainer.widthAnchor constraintEqualToConstant:300.0],
+        [stack.topAnchor constraintEqualToAnchor:cardContainer.topAnchor constant:20.0],
+        [stack.bottomAnchor constraintEqualToAnchor:cardContainer.bottomAnchor constant:-20.0],
+        [stack.leadingAnchor constraintEqualToAnchor:cardContainer.leadingAnchor constant:16.0],
+        [stack.trailingAnchor constraintEqualToAnchor:cardContainer.trailingAnchor constant:-16.0]
+    ]];
+    
+    cardContainer.transform = CGAffineTransformMakeScale(0.85, 0.85);
+    cardContainer.alpha = 0.0;
+    [UIView animateWithDuration:0.35 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0.5 options:0 animations:^{
+        cardContainer.transform = CGAffineTransformIdentity;
+        cardContainer.alpha = 1.0;
+    } completion:nil];
+}
+
+- (UIButton *)createGlassButtonWithTitle:(NSString *)title isDestructive:(BOOL)isDestructive action:(SEL)action {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    [button setTitle:title forState:UIControlStateNormal];
+    button.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+    [button setTitleColor:(isDestructive ? [FLEXColor systemRedColor] : [FLEXColor labelColor]) forState:UIControlStateNormal];
+    button.backgroundColor = [FLEXColor glassCardBackgroundColor];
+    button.layer.cornerRadius = 14.0;
+    button.layer.borderWidth = 0.5;
+    button.layer.borderColor = [FLEXColor glassBorderColor].CGColor;
+    button.clipsToBounds = YES;
+    [button.heightAnchor constraintEqualToConstant:44.0].active = YES;
+    [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+
+- (void)btnFLEXTapped {
+    [self dismissViewControllerAnimated:YES completion:^{
+        if (self.onOpenFLEX) self.onOpenFLEX();
+    }];
+}
+
+- (void)btnOtherTapped {
+    [self dismissViewControllerAnimated:YES completion:^{
+        if (self.onOpenOther) self.onOpenOther();
+    }];
+}
+
+- (void)btnToggleTapped {
+    [self dismissViewControllerAnimated:YES completion:^{
+        if (self.onToggleGesture) self.onToggleGesture();
+    }];
+}
+
+- (void)dismissSelf {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+@end
 
 @implementation FLEXManager (ThreeFingerTap)
 
@@ -127,7 +282,7 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
     FLEXThreeFingerGlassMenuViewController *menuVC = [FLEXThreeFingerGlassMenuViewController new];
     menuVC.hasOtherThreeFingerGestures = hasOtherThreeFingerGestures;
     menuVC.modalPresentationStyle = UIModalPresentationOverFullScreen;
-    menuVC.modalTransitionStyle = UIModalTransitionCrossDissolve;
+    menuVC.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
     
     menuVC.onOpenFLEX = ^{
         if ([FLEXManager sharedManager]) {
