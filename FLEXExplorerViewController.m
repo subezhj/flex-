@@ -31,6 +31,7 @@
 #import "x/Decrypt/UCDecryptTool.h"
 #import "x/Decrypt/DatabaseManager.h"
 #import "x/AppProtection/UCAppProtectionTool.h" 
+#import "x/Export/UCLayoutDumpTool.h"
 
 typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
     FLEXExplorerModeDefault,
@@ -465,36 +466,47 @@ typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
 }
 
 - (void)decryptButtonTapped:(FLEXExplorerToolbarItem *)sender {
-    NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier] ?: @"unknown";
-    DatabaseManager *db = [DatabaseManager sharedManager];
-    BOOL isMainSwitchOn = [db getSwitch:@"zongkaiguan" bundleID:bundleID defaultValue:NO];
+    UIAlertController *actionSheet = [UIAlertController alertControllerWithTitle:@"📦 FLEX++ 抓取与调试导出工具"
+                                                                         message:@"请选择需要执行的操作："
+                                                                  preferredStyle:UIAlertControllerStyleActionSheet];
     
-    if (isMainSwitchOn) {
-        // 总开关已开启，直接进入面板
-        [UCDecryptTool presentDecryptPanelFromViewController:self];
-    } else {
-        // 总开关关闭，弹出确认是否开启
-        UIAlertController *alert = [UIAlertController
-            alertControllerWithTitle:@"抓取功能"
-            message:@"抓取功能当前未开启。\n\n启用后将自动抓取网络请求、加密算法调用、密钥等信息。是否开启？"
-            preferredStyle:UIAlertControllerStyleAlert];
-        
-        [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-        
-        [alert addAction:[UIAlertAction actionWithTitle:@"开启并进入" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            // 开启总开关
-            [db setSwitch:@"zongkaiguan" bundleID:bundleID value:YES];
-            [db setSwitch:@"zhaiyaokaiguan" bundleID:bundleID value:YES];
-            [db setSwitch:@"jiamisuanfakaiguan" bundleID:bundleID value:YES];
-            
-            // 进入面板
+    [actionSheet addAction:[UIAlertAction actionWithTitle:@"📦 布局抓取与调试包导出 (ViewTree+Config+Log+Network)"
+                                                   style:UIAlertActionStyleDefault
+                                                 handler:^(UIAlertAction * _Nonnull action) {
+        [UCLayoutDumpTool presentDumpPanelFromViewController:self];
+    }]];
+    
+    [actionSheet addAction:[UIAlertAction actionWithTitle:@"🔓 网络与密钥抓取面板 (Crypto & Hash Logs)"
+                                                   style:UIAlertActionStyleDefault
+                                                 handler:^(UIAlertAction * _Nonnull action) {
+        NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier] ?: @"unknown";
+        DatabaseManager *db = [DatabaseManager sharedManager];
+        BOOL isMainSwitchOn = [db getSwitch:@"zongkaiguan" bundleID:bundleID defaultValue:NO];
+        if (isMainSwitchOn) {
             [UCDecryptTool presentDecryptPanelFromViewController:self];
-        }]];
-        
-        alert.popoverPresentationController.barButtonItem = sender;
-        
-        [self presentViewController:alert animated:YES completion:nil];
+        } else {
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"抓取功能"
+                                                                          message:@"抓取功能当前未开启。\n\n启用后将自动抓取网络请求、加密算法调用、密钥等信息。是否开启？"
+                                                                   preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+            [alert addAction:[UIAlertAction actionWithTitle:@"开启并进入" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+                [db setSwitch:@"zongkaiguan" bundleID:bundleID value:YES];
+                [db setSwitch:@"zhaiyaokaiguan" bundleID:bundleID value:YES];
+                [db setSwitch:@"jiamisuanfakaiguan" bundleID:bundleID value:YES];
+                [UCDecryptTool presentDecryptPanelFromViewController:self];
+            }]];
+            [self presentViewController:alert animated:YES completion:nil];
+        }
+    }]];
+    
+    [actionSheet addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+        actionSheet.popoverPresentationController.barButtonItem = sender;
+        actionSheet.popoverPresentationController.sourceView = self.view;
     }
+    
+    [self presentViewController:actionSheet animated:YES completion:nil];
 }
 
 - (void)disassemblerButtonTapped:(FLEXExplorerToolbarItem *)sender {

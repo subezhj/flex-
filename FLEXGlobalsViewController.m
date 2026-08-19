@@ -25,6 +25,7 @@
 #import "FLEXGlobalsSection.h"
 #import "UIBarButtonItem+FLEX.h"
 #import "FLEXManager+ThreeFingerTap.h"
+#import "x/Export/UCLayoutDumpTool.h"
 
 @interface FLEXGlobalsViewController ()
 // 表视图中仅显示的部分；空部分从此数组中清除。
@@ -111,6 +112,12 @@
     static NSMutableArray<FLEXGlobalsSection *> *sections = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        FLEXGlobalsEntry *layoutDumpEntry = [FLEXGlobalsEntry entryWithNameFuture:^NSString *{
+            return @"📦 布局抓取与调试包导出";
+        } action:^(UITableViewController *host) {
+            [UCLayoutDumpTool presentDumpPanelFromViewController:host];
+        }];
+
         FLEXGlobalsEntry *threeFingerEntry = [FLEXGlobalsEntry entryWithNameFuture:^NSString *{
             return [NSString stringWithFormat:@"三指轻敲唤醒 FLEX: %@", [FLEXManager isThreeFingerTapEnabled] ? @"已开启" : @"已关闭"];
         } action:^(UITableViewController *host) {
@@ -120,17 +127,17 @@
             
             NSString *msg = !current ? @"三指轻敲唤醒已成功开启。" : @"三指轻敲唤醒已成功关闭。";
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"手势设置已更新"
-                                                                           message:msg
-                                                                    preferredStyle:UIAlertControllerStyleAlert];
+                                                                            message:msg
+                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleCancel handler:nil]];
             [host presentViewController:alert animated:YES completion:nil];
         }];
 
         NSDictionary<NSNumber *, NSArray<FLEXGlobalsEntry *> *> *rowsBySection = @{
             @(FLEXGlobalsSectionProcessAndEvents) : @[
+                layoutDumpEntry,
                 [self globalsEntryForRow:FLEXGlobalsRowNetworkHistory],
                 [self globalsEntryForRow:FLEXGlobalsRowSystemLog],
-                [self globalsEntryForRow:FLEXGlobalsRowProcessInfo],
                 [self globalsEntryForRow:FLEXGlobalsRowLiveObjects],
                 [self globalsEntryForRow:FLEXGlobalsRowAddressInspector],
                 [self globalsEntryForRow:FLEXGlobalsRowBrowseRuntime],
