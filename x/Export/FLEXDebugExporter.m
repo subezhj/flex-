@@ -1,5 +1,5 @@
 #import "FLEXDebugExporter.h"
-#import "CDZipWriter.h"
+#import "x/ClassDump/CDZipWriter.h"
 #import "FLEXNetworkRecorder.h"
 #import "FLEXNetworkTransaction.h"
 #import "FLEXNetworkObserver.h"
