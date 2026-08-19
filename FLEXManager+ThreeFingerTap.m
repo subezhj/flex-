@@ -70,7 +70,7 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
     UILabel *titleLabel = [UILabel new];
     titleLabel.text = @"✨ FLEX++ 液态调试";
     titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightBold];
-    titleLabel.textColor = [FLEXColor labelColor];
+    titleLabel.textColor = FLEXLabelColor;
     titleLabel.textAlignment = NSTextAlignmentCenter;
     [stack addArrangedSubview:titleLabel];
     
@@ -79,7 +79,7 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
         ? @"检测到界面存在其他插件的三指手势，请选择："
         : @"检测到三指手势，请选择要调出的操作：";
     subLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
-    subLabel.textColor = [FLEXColor secondaryLabelColor];
+    subLabel.textColor = FLEXSecondaryLabelColor;
     subLabel.textAlignment = NSTextAlignmentCenter;
     subLabel.numberOfLines = 0;
     [stack addArrangedSubview:subLabel];
@@ -127,7 +127,7 @@ static UILongPressGestureRecognizer *flex_threeFingerLongPressGesture = nil;
     UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
     [button setTitle:title forState:UIControlStateNormal];
     button.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
-    [button setTitleColor:(isDestructive ? [FLEXColor systemRedColor] : [FLEXColor labelColor]) forState:UIControlStateNormal];
+    [button setTitleColor:(isDestructive ? FLEXSystemRedColor : FLEXLabelColor) forState:UIControlStateNormal];
     button.backgroundColor = [FLEXColor glassCardBackgroundColor];
     button.layer.cornerRadius = 14.0;
     button.layer.borderWidth = 0.5;
