@@ -87,6 +87,6 @@ after-package::
 	@mkdir -p packages
 	@rm -f packages/FLEX++.dylib
 	@find .theos -name '*FLEX*.dylib' -exec cp -f {} packages/FLEX++_1.0.0.dylib \; 2>/dev/null || true
-	@DEB=$$(find .theos -name '*.deb' 2>/dev/null | head -1); \
+	@DEB=$$(find .theos packages -name '*.deb' 2>/dev/null | head -1); \
 	 if [ -n "$$DEB" ] && [ -f "$$DEB" ]; then cp -f "$$DEB" packages/FLEX++_1.0.0.deb; fi
 
