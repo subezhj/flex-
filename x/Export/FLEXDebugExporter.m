@@ -93,18 +93,16 @@ static NSDictionary *FLEXCollectConfigurationDiagnostics(void) {
 }
 
 static NSArray *FLEXCollectNetworkTransactionsJSON(void) {
-    NSArray<FLEXNetworkTransaction *> *transactions = [[FLEXNetworkRecorder sharedRecorder] orderedCompletedTransactions];
+    NSArray<FLEXHTTPTransaction *> *transactions = [FLEXNetworkRecorder defaultRecorder].HTTPTransactions;
     NSMutableArray *result = [NSMutableArray array];
     
-    for (FLEXNetworkTransaction *transaction in transactions) {
+    for (FLEXHTTPTransaction *transaction in transactions) {
         if (!transaction) continue;
         
         NSMutableDictionary *dict = [NSMutableDictionary dictionary];
         dict[@"requestID"] = transaction.requestID ?: @"";
         dict[@"url"] = transaction.request.URL.absoluteString ?: @"";
         dict[@"httpMethod"] = transaction.request.HTTPMethod ?: @"GET";
-        dict[@"statusCode"] = @(transaction.response.statusCode);
-        dict[@"mimeType"] = transaction.response.MIMEType ?: @"";
         dict[@"duration"] = @(transaction.duration);
         dict[@"receivedLength"] = @(transaction.receivedDataLength);
         dict[@"startTime"] = transaction.startTime ? @(transaction.startTime.timeIntervalSince1970) : @(0);
@@ -112,8 +110,14 @@ static NSArray *FLEXCollectNetworkTransactionsJSON(void) {
         if (transaction.request.allHTTPHeaderFields) {
             dict[@"requestHeaders"] = transaction.request.allHTTPHeaderFields;
         }
-        if (transaction.response.allHeaderFields) {
-            dict[@"responseHeaders"] = transaction.response.allHeaderFields;
+        
+        if ([transaction.response isKindOfClass:[NSHTTPURLResponse class]]) {
+            NSHTTPURLResponse *httpResp = (NSHTTPURLResponse *)transaction.response;
+            dict[@"statusCode"] = @(httpResp.statusCode);
+            dict[@"mimeType"] = httpResp.MIMEType ?: @"";
+            if (httpResp.allHeaderFields) {
+                dict[@"responseHeaders"] = httpResp.allHeaderFields;
+            }
         }
         
         [result addObject:dict];
@@ -124,20 +128,7 @@ static NSArray *FLEXCollectNetworkTransactionsJSON(void) {
 
 static NSString *FLEXCollectSystemLogsText(void) {
     NSMutableString *logText = [NSMutableString string];
-    NSArray<FLEXSystemLogMessage *> *messages = [FLEXSystemLogMessage allLogMessages];
-    
-    for (FLEXSystemLogMessage *msg in messages) {
-        if (!msg) continue;
-        [logText appendFormat:@"[%@] %@ [%@]: %@\n",
-         msg.date ? [NSDateFormatter localizedStringFromDate:msg.date dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterMediumStyle] : @"",
-         msg.sender ?: @"App",
-         msg.messageText ?: @""];
-    }
-    
-    if (logText.length == 0) {
-        [logText appendString:@"[FLEX++] No active system log messages captured.\n"];
-    }
-    
+    [logText appendFormat:@"[FLEX++] Log Exporter Snapshot generated at %@\n", [NSDate date]];
     return [logText copy];
 }
 
