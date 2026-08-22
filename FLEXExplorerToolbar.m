@@ -132,7 +132,11 @@
             self.secondRowBackground.clipsToBounds = YES;
         }
         
-        [self.secondRowBackground addSubview:self.secondRowDragHandle];
+        if ([self.secondRowBackground isKindOfClass:[UIVisualEffectView class]]) {
+            [((UIVisualEffectView *)self.secondRowBackground).contentView addSubview:self.secondRowDragHandle];
+        } else {
+            [self.secondRowBackground addSubview:self.secondRowDragHandle];
+        }
         [self addSubview:self.secondRowBackground];
         
         // Buttons - 第二行
@@ -307,7 +311,11 @@
     }
     
     for (FLEXExplorerToolbarItem *item in secondRowItems) {
-        [self.secondRowBackground addSubview:item.currentItem];
+        if ([self.secondRowBackground isKindOfClass:[UIVisualEffectView class]]) {
+            [((UIVisualEffectView *)self.secondRowBackground).contentView addSubview:item.currentItem];
+        } else {
+            [self.secondRowBackground addSubview:item.currentItem];
+        }
     }
     
     _secondRowItems = secondRowItems.copy;
