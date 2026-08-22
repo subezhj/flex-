@@ -470,6 +470,12 @@ typedef NS_ENUM(NSUInteger, FLEXExplorerMode) {
                                                                          message:@"请选择需要执行的操作："
                                                                   preferredStyle:UIAlertControllerStyleActionSheet];
     
+    [actionSheet addAction:[UIAlertAction actionWithTitle:@"📸 快捷导出当前画面截图 & 线框图 (PNG)"
+                                                   style:UIAlertActionStyleDefault
+                                                 handler:^(UIAlertAction * _Nonnull action) {
+        [UCLayoutDumpTool performQuickScreenshotShareFromViewController:self];
+    }]];
+    
     [actionSheet addAction:[UIAlertAction actionWithTitle:@"📦 布局抓取与调试包导出 (ViewTree+Config+Log+Network)"
                                                    style:UIAlertActionStyleDefault
                                                  handler:^(UIAlertAction * _Nonnull action) {

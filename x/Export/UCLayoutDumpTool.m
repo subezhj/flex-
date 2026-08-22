@@ -215,8 +215,14 @@
     if (!ctx) return;
     
     NSMutableArray *items = [NSMutableArray array];
-    if (ctx.screenshotImage) [items addObject:ctx.screenshotImage];
-    if (ctx.wireframeImage) [items addObject:ctx.wireframeImage];
+    if (ctx.screenshotPNG) {
+        UIImage *img = [UIImage imageWithData:ctx.screenshotPNG];
+        if (img) [items addObject:img];
+    }
+    if (ctx.wireframePNG) {
+        UIImage *img = [UIImage imageWithData:ctx.wireframePNG];
+        if (img) [items addObject:img];
+    }
     
     if (items.count == 0) return;
     
