@@ -118,6 +118,12 @@
             [UCLayoutDumpTool presentDumpPanelFromViewController:host];
         }];
 
+        FLEXGlobalsEntry *quickShotEntry = [FLEXGlobalsEntry entryWithNameFuture:^NSString *{
+            return @"📸 快捷导出当前画面截图 (PNG)";
+        } action:^(UITableViewController *host) {
+            [UCLayoutDumpTool performQuickScreenshotShareFromViewController:host];
+        }];
+
         FLEXGlobalsEntry *threeFingerEntry = [FLEXGlobalsEntry entryWithNameFuture:^NSString *{
             return [NSString stringWithFormat:@"三指轻敲唤醒 FLEX: %@", [FLEXManager isThreeFingerTapEnabled] ? @"已开启" : @"已关闭"];
         } action:^(UITableViewController *host) {
@@ -136,6 +142,7 @@
         NSDictionary<NSNumber *, NSArray<FLEXGlobalsEntry *> *> *rowsBySection = @{
             @(FLEXGlobalsSectionProcessAndEvents) : @[
                 layoutDumpEntry,
+                quickShotEntry,
                 [self globalsEntryForRow:FLEXGlobalsRowNetworkHistory],
                 [self globalsEntryForRow:FLEXGlobalsRowSystemLog],
                 [self globalsEntryForRow:FLEXGlobalsRowLiveObjects],

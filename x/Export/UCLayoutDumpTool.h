@@ -6,6 +6,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)presentDumpPanelFromViewController:(nullable UIViewController *)viewController;
 + (void)performFullLayoutDumpAndShareFromViewController:(nullable UIViewController *)viewController;
++ (void)performQuickScreenshotShareFromViewController:(nullable UIViewController *)viewController;
 
 @end
 

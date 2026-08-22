@@ -8,6 +8,7 @@
 @property (nonatomic, copy) void (^onFullDump)(void);
 @property (nonatomic, copy) void (^onLayoutOnlyDump)(void);
 @property (nonatomic, copy) void (^onConfigOnlyDump)(void);
+@property (nonatomic, copy) void (^onQuickScreenshot)(void);
 @property (nonatomic, copy) void (^onOpenInFilza)(void);
 @end
 
@@ -84,7 +85,10 @@
     UIButton *btnFull = [self createGlassButtonWithTitle:@"🚀 一键全量导出 ZIP (布局+配置+Log+网络)" isPrimary:YES action:@selector(btnFullTapped)];
     [stack addArrangedSubview:btnFull];
     
-    UIButton *btnLayout = [self createGlassButtonWithTitle:@"🎨 仅导出界面布局与线框图 (ViewTree+PNG)" isPrimary:NO action:@selector(btnLayoutTapped)];
+    UIButton *btnQuickPic = [self createGlassButtonWithTitle:@"📸 快捷导出当前画面截图 & 线框图 (PNG)" isPrimary:NO action:@selector(btnQuickPicTapped)];
+    [stack addArrangedSubview:btnQuickPic];
+    
+    UIButton *btnLayout = [self createGlassButtonWithTitle:@"🎨 仅导出界面布局与视图树 (ViewTree+ZIP)" isPrimary:NO action:@selector(btnLayoutTapped)];
     [stack addArrangedSubview:btnLayout];
     
     UIButton *btnConfig = [self createGlassButtonWithTitle:@"⚙️ 仅导出配置诊断与环境问题" isPrimary:NO action:@selector(btnConfigTapped)];
@@ -136,6 +140,12 @@
     }];
 }
 
+- (void)btnQuickPicTapped {
+    [self dismissViewControllerAnimated:YES completion:^{
+        if (self.onQuickScreenshot) self.onQuickScreenshot();
+    }];
+}
+
 - (void)btnLayoutTapped {
     [self dismissViewControllerAnimated:YES completion:^{
         if (self.onLayoutOnlyDump) self.onLayoutOnlyDump();
@@ -176,6 +186,9 @@
     panel.onFullDump = ^{
         [self performFullLayoutDumpAndShareFromViewController:presenter];
     };
+    panel.onQuickScreenshot = ^{
+        [self performQuickScreenshotShareFromViewController:presenter];
+    };
     panel.onLayoutOnlyDump = ^{
         [self performFullLayoutDumpAndShareFromViewController:presenter];
     };
@@ -195,6 +208,24 @@
     };
     
     [presenter presentViewController:panel animated:YES completion:nil];
+}
+
++ (void)performQuickScreenshotShareFromViewController:(UIViewController *)viewController {
+    FLEXDebugCaptureContext *ctx = FLEXDebugCaptureCurrentContext();
+    if (!ctx) return;
+    
+    NSMutableArray *items = [NSMutableArray array];
+    if (ctx.screenshotImage) [items addObject:ctx.screenshotImage];
+    if (ctx.wireframeImage) [items addObject:ctx.wireframeImage];
+    
+    if (items.count == 0) return;
+    
+    UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:items applicationActivities:nil];
+    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+        activityVC.popoverPresentationController.sourceView = viewController.view;
+        activityVC.popoverPresentationController.sourceRect = CGRectMake(viewController.view.bounds.size.width / 2.0, viewController.view.bounds.size.height / 2.0, 1, 1);
+    }
+    [viewController presentViewController:activityVC animated:YES completion:nil];
 }
 
 + (void)performFullLayoutDumpAndShareFromViewController:(UIViewController *)viewController {
