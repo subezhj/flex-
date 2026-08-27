@@ -81,6 +81,22 @@ FLEX_pp_CFLAGS = -fobjc-arc -include flex_fishhook.h \
 FLEX_pp_CCFLAGS = -std=c++17 -Wno-unused-function -Wno-objc-missing-property-synthesis
 FLEX_pp_OBJCFLAGS = -fobjc-arc
 
+# ═══ FlexProbe 布局抓取模块（并入本 dylib） ═══
+# FlexProbe 源码全部平铺在 FlexProbe/，根 Makefile 的 find . 已自动包含（*.m）。
+FLEX_pp_CFLAGS += -IFlexProbe -Wno-deprecated-declarations -Wno-arc-performSelector-leaks
+
+# ── 注入目标参数化 ──
+#   默认留空 = 不过滤（注入全部进程，与原版 FLEX++ 一致）。
+#   指定 bundle id 则只注入目标 App：
+#     make package FLEXPROBE_TARGET_BUNDLE=com.example.ipa
+FLEXPROBE_TARGET_BUNDLE ?=
+ifneq ($(FLEXPROBE_TARGET_BUNDLE),)
+FLEXPROBE_PLIST_INSTALL_DIR = $(THEOS_STAGING_DIR)$(THEOS_PACKAGE_INSTALL_PREFIX)$(FLEX_pp_INSTALL_PATH)
+before-package::
+	@mkdir -p "$(FLEXPROBE_PLIST_INSTALL_DIR)"
+	@printf '{ Filter = { Bundles = ( "%s" ); }; }' "$(FLEXPROBE_TARGET_BUNDLE)" > "$(FLEXPROBE_PLIST_INSTALL_DIR)/FLEX_pp.plist"
+endif
+
 include $(THEOS_MAKE_PATH)/library.mk
 
 after-package::
