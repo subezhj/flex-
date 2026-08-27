@@ -20,6 +20,9 @@ static UITapGestureRecognizer *gFPGesture = nil;
 static __weak UIWindow *gFPGestureWindow = nil;
 static BOOL gFPExporting = NO;
 
+// 前向声明：relay 回调在菜单函数定义之前被引用（见 probeTriggered:）。
+static void FPShowMenu(void);
+
 // 手势 target 必须被强持有:UIKit 对 target 是 unsafe_unretained,
 // 临时对象(如 NSBlockOperation)会被立即释放导致悬垂崩溃。
 @interface FPGestureRelay : NSObject
