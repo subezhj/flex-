@@ -13,6 +13,7 @@
 #import "FPLayoutSnapshot.h"
 #import "FPZipWriter.h"
 #import "FLEXManager.h"
+#import "FLEXWindow.h"
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
@@ -39,18 +40,26 @@ static FPGestureRelay *gFPRelay = nil;
 #pragma mark - 工具
 
 static UIWindow *FPKeyWindow(void) {
+    NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
     if (@available(iOS 13.0, *)) {
         for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-            if (scene.activationState != UISceneActivationStateForegroundActive) continue;
-            for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-                if (window.isKeyWindow) return window;
-            }
+            if (![scene isKindOfClass:UIWindowScene.class] ||
+                scene.activationState != UISceneActivationStateForegroundActive) continue;
+            [windows addObjectsFromArray:((UIWindowScene *)scene).windows];
         }
     }
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    return UIApplication.sharedApplication.keyWindow;
+    if (!windows.count) [windows addObjectsFromArray:UIApplication.sharedApplication.windows];
 #pragma clang diagnostic pop
+    UIWindow *fallback = nil;
+    for (UIWindow *window in windows) {
+        if ([window isKindOfClass:FLEXWindow.class] || window.hidden || window.alpha < 0.01 ||
+            window.windowLevel != UIWindowLevelNormal || !window.rootViewController) continue;
+        if (window.isKeyWindow) return window;
+        if (!fallback) fallback = window;
+    }
+    return fallback;
 }
 
 static UIViewController *FPTopViewController(UIViewController *root) {
@@ -61,9 +70,9 @@ static UIViewController *FPTopViewController(UIViewController *root) {
     return top;
 }
 
-static void FPPresentFromKeyWindow(UIViewController *vc) {
+static BOOL FPPresentFromKeyWindow(UIViewController *vc) {
     UIViewController *presenter = FPKeyWindow().rootViewController;
-    if (!presenter) return;
+    if (!presenter) return NO;
     if ([presenter isKindOfClass:UINavigationController.class]) {
         presenter = ((UINavigationController *)presenter).topViewController ?: presenter;
     }
@@ -71,7 +80,10 @@ static void FPPresentFromKeyWindow(UIViewController *vc) {
     vc.popoverPresentationController.sourceView = presenter.view;
     vc.popoverPresentationController.sourceRect =
         CGRectMake(CGRectGetMidX(presenter.view.bounds), CGRectGetMidY(presenter.view.bounds), 1, 1);
+    if (presenter.isBeingDismissed || presenter.isBeingPresented) return NO;
+    NSLog(@"[FlexProbe] presenting %@ from %@", vc.class, presenter.class);
     [presenter presentViewController:vc animated:YES completion:nil];
+    return YES;
 }
 
 #pragma mark - 导出
@@ -82,20 +94,24 @@ static void FPExportSnapshot(void) {
     gFPExporting = YES;
 
     NSString *dir = [FPLayoutSnapshot defaultCaptureDirectory];
-    NSArray<NSString *> *files = [FPLayoutSnapshot captureIntoDirectory:dir];
-    if (files.count == 0) {
-        gFPExporting = NO;
-        return;
-    }
-
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+    [FPLayoutSnapshot captureIntoDirectory:dir completion:^(NSArray<NSString *> *files, NSError *captureError) {
+        if (!files.count) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                gFPExporting = NO;
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"FlexProbe"
+                    message:captureError.localizedDescription ?: @"采集失败" preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
+                FPPresentFromKeyWindow(alert);
+            });
+            return;
+        }
         NSString *zipPath = [dir stringByAppendingPathComponent:@"flexprobe-snapshot.zip"];
         NSError *zipError = nil;
         BOOL ok = [FPZipWriter createZipAtPath:zipPath rootDir:dir files:files
                                       progress:nil error:&zipError];
         dispatch_async(dispatch_get_main_queue(), ^{
-            gFPExporting = NO;
             if (!ok) {
+                gFPExporting = NO;
                 UIAlertController *alert = [UIAlertController
                     alertControllerWithTitle:@"FlexProbe"
                                      message:[NSString stringWithFormat:@"打包失败: %@", zipError.localizedDescription]
@@ -110,39 +126,53 @@ static void FPExportSnapshot(void) {
                 [[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
             share.completionWithItemsHandler = ^(__unused NSString *type, BOOL completed,
                                                  __unused NSArray *items, __unused NSError *error) {
-                if (!completed) return;
-                // 分享完成后清理采集目录,只留 zip,避免 tmp 堆积。
-                [[NSFileManager defaultManager] removeItemAtPath:dir error:nil];
+                NSLog(@"[FlexProbe] share finished: type=%@ completed=%d error=%@ zip=%@", type, completed, error, zipPath);
+                dispatch_async(dispatch_get_main_queue(), ^{ gFPExporting = NO; });
+                // Keep the ZIP available to file providers; remove only source files off main.
+                dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                    for (NSString *file in files) {
+                        [[NSFileManager defaultManager] removeItemAtPath:file error:nil];
+                    }
+                    NSLog(@"[FlexProbe] source cleanup finished; retained ZIP: %@", zipPath);
+                });
             };
-            FPPresentFromKeyWindow(share);
+            if (!FPPresentFromKeyWindow(share)) {
+                gFPExporting = NO;
+                NSLog(@"[FlexProbe] share presentation unavailable; ZIP retained: %@", zipPath);
+            }
         });
-    });
+    }];
 }
 
 // 快速连拍:转场动画中间态肉眼盯不住,固定间隔采 3 份。
 static void FPExportBurst(void) {
     if (gFPExporting) return;
     gFPExporting = YES;
+    dispatch_group_t group = dispatch_group_create();
+    __block NSUInteger succeeded = 0;
     dispatch_async(dispatch_get_main_queue(), ^{
         for (NSUInteger i = 0; i < 3; i++) {
+            dispatch_group_enter(group);
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((double)i * 1.5 * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), ^{
                 NSString *dir = [FPLayoutSnapshot defaultCaptureDirectory];
-                NSArray<NSString *> *files = [FPLayoutSnapshot captureIntoDirectory:dir];
-                if (files.count == 0) return;
-                dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                [FPLayoutSnapshot captureIntoDirectory:dir completion:^(NSArray<NSString *> *files, NSError *error) {
+                    if (!files.count) { NSLog(@"[FlexProbe] burst capture failed: %@", error); dispatch_group_leave(group); return; }
                     NSString *zipPath = [dir stringByAppendingPathComponent:@"flexprobe-snapshot.zip"];
-                    [FPZipWriter createZipAtPath:zipPath rootDir:dir files:files progress:nil error:nil];
-                });
+                    BOOL ok = [FPZipWriter createZipAtPath:zipPath rootDir:dir files:files progress:nil error:nil];
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (ok) succeeded++;
+                        dispatch_group_leave(group);
+                    });
+                }];
             });
         }
-        // 3 次连拍结束(约 4.5s 后)统一提示收尾。
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{
+        // Wait for all captures and background writes before reporting completion.
+        dispatch_group_notify(group, dispatch_get_main_queue(), ^{
             gFPExporting = NO;
             UIAlertController *alert = [UIAlertController
                 alertControllerWithTitle:@"FlexProbe"
-                                 message:[NSString stringWithFormat:@"连拍完成,3 份快照已写入:\n%@", [FPLayoutSnapshot defaultCaptureDirectory].stringByDeletingLastPathComponent]
+                                 message:[NSString stringWithFormat:@"连拍完成,%lu/3 份快照已写入:\n%@", (unsigned long)succeeded, [FPLayoutSnapshot defaultCaptureDirectory].stringByDeletingLastPathComponent]
                           preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleCancel handler:nil]];
             FPPresentFromKeyWindow(alert);

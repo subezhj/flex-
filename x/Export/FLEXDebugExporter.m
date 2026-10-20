@@ -254,7 +254,10 @@ void FLEXDebugPresentShareSheet(FLEXDebugExportResult *result, UIViewController 
     }
     
     activityVC.completionWithItemsHandler = ^(UIActivityType _Nullable activityType, BOOL completed, NSArray * _Nullable returnedItems, NSError * _Nullable activityError) {
-        FLEXDebugCleanupExport(result);
+        NSLog(@"[FLEXDebugExporter] share finished: type=%@ completed=%d error=%@", activityType, completed, activityError);
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            FLEXDebugCleanupExport(result);
+        });
     };
     
     [presenter presentViewController:activityVC animated:YES completion:nil];

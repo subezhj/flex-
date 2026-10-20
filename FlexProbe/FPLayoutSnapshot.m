@@ -115,6 +115,7 @@ static NSUInteger FPDumpView(UIView *view,
     NSString *vcName = FPResponderViewController(view);
     NSString *bgHex = FPColorHex(view.backgroundColor);
     NSString *ptr = [NSString stringWithFormat:@"%p", view];
+    CGSize intrinsicSize = view.intrinsicContentSize;
 
     [tree appendFormat:@"%@[%@:%@] f=%@ wf=%@ bounds=%@%@%@%@%@%@ cons=%lu/%lu intrinsic=%@%@\n",
         [@"" stringByPaddingToLength:depth * 2 withString:@" " startingAtIndex:0],
@@ -129,8 +130,8 @@ static NSUInteger FPDumpView(UIView *view,
         bgHex ? [NSString stringWithFormat:@" bg=%@", bgHex] : @"",
         (unsigned long)FPViewActiveConstraints(view),
         (unsigned long)view.constraints.count,
-        CGSizeEqualToSize(view.intrinsicContentSize, CGSizeZero)
-            ? @"-" : FPSizeString(view.intrinsicContentSize),
+        CGSizeEqualToSize(intrinsicSize, CGSizeZero)
+            ? @"-" : FPSizeString(intrinsicSize),
         vcName ? [NSString stringWithFormat:@" vc=%@", vcName] : @""];
 
     NSMutableDictionary *node = [NSMutableDictionary dictionary];
@@ -147,8 +148,8 @@ static NSUInteger FPDumpView(UIView *view,
     node[@"autoresizing"] = @((unsigned long)view.autoresizingMask);
     node[@"constraintsActive"] = @((unsigned long)FPViewActiveConstraints(view));
     node[@"constraintsTotal"] = @((unsigned long)view.constraints.count);
-    if (!CGSizeEqualToSize(view.intrinsicContentSize, CGSizeZero)) {
-        node[@"intrinsic"] = FPRectDict((CGRect){ .size = view.intrinsicContentSize });
+    if (!CGSizeEqualToSize(intrinsicSize, CGSizeZero)) {
+        node[@"intrinsic"] = FPRectDict((CGRect){ .size = intrinsicSize });
     }
     if (view.layer.cornerRadius > 0.5) {
         node[@"cornerRadius"] = @((double)(int)(view.layer.cornerRadius * 10) / 10.0);
@@ -243,20 +244,16 @@ static NSDictionary *FPMetaDictionary(NSString *bundleID) {
 @implementation FPLayoutSnapshot
 
 + (NSString *)defaultCaptureDirectory {
-    NSString *stamp = [NSString stringWithFormat:@"%.0f", NSDate.date.timeIntervalSince1970 * 1000];
+    NSString *stamp = NSUUID.UUID.UUIDString;
     return [NSTemporaryDirectory()
         stringByAppendingPathComponent:[NSString stringWithFormat:@"FlexProbe-captures/%@", stamp]];
 }
 
-+ (NSArray<NSString *> *)captureIntoDirectory:(NSString *)dir {
++ (void)captureIntoDirectory:(NSString *)dir completion:(void (^)(NSArray<NSString *> *, NSError *))completion {
     if (![NSThread isMainThread]) {
         NSLog(@"[FlexProbe] captureIntoDirectory 必须在主线程调用");
-        return @[];
-    }
-
-    NSFileManager *fm = NSFileManager.defaultManager;
-    if (![fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil]) {
-        return @[];
+        completion(@[], [NSError errorWithDomain:@"FlexProbe.Capture" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Snapshot must be captured on the main thread"}]);
+        return;
     }
 
     NSString *bundleID = NSBundle.mainBundle.bundleIdentifier;
@@ -342,24 +339,35 @@ static NSDictionary *FPMetaDictionary(NSString *bundleID) {
 
     // ── 4. 落盘 ──
     NSDictionary *jsonRoot = @{ @"meta": meta, @"windows": windowsJSON, @"viewControllers": vcsJSON };
-    NSError *jsonError = nil;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonRoot
-                                                       options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys
-                                                         error:&jsonError];
+    NSLog(@"[FlexProbe] captured %lu nodes; writing snapshot in background", (unsigned long)total);
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+        NSError *writeError = nil;
+        NSFileManager *fm = NSFileManager.defaultManager;
+        if (![fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&writeError]) {
+            completion(@[], writeError);
+            return;
+        }
+        NSError *jsonError = nil;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonRoot
+                                                           options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys
+                                                             error:&jsonError];
 
-    NSMutableArray<NSString *> *files = [NSMutableArray array];
-    void (^write)(NSString *, NSData *) = ^(NSString *name, NSData *data) {
-        if (!data) return;
-        NSString *path = [dir stringByAppendingPathComponent:name];
-        if ([data writeToFile:path atomically:YES]) [files addObject:path];
-    };
-    write(kFPMetaFile, [metaText dataUsingEncoding:NSUTF8StringEncoding]);
-    write(kFTreeFile, [tree dataUsingEncoding:NSUTF8StringEncoding]);
-    write(kFVCTreeFile, [vcTree dataUsingEncoding:NSUTF8StringEncoding]);
-    write(kFJSONFile, jsonData);
-    (void)FPDocumentDirectory;
-    (void)key;
-    return files;
+        if (!jsonData) { completion(@[], jsonError); return; }
+        NSMutableArray<NSString *> *files = [NSMutableArray array];
+        __block NSError *fileError = nil;
+        void (^write)(NSString *, NSData *) = ^(NSString *name, NSData *data) {
+            if (!data) return;
+            NSString *path = [dir stringByAppendingPathComponent:name];
+            if ([data writeToFile:path options:NSDataWritingAtomic error:&fileError]) [files addObject:path];
+        };
+        write(kFPMetaFile, [metaText dataUsingEncoding:NSUTF8StringEncoding]);
+        write(kFTreeFile, [tree dataUsingEncoding:NSUTF8StringEncoding]);
+        write(kFVCTreeFile, [vcTree dataUsingEncoding:NSUTF8StringEncoding]);
+        write(kFJSONFile, jsonData);
+        (void)FPDocumentDirectory;
+        (void)key;
+        completion(files.count == 4 ? files : @[], fileError);
+    });
 }
 
 @end

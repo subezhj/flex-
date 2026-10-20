@@ -23,7 +23,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 采集快照到 dir(自动创建),返回生成的文件绝对路径数组(不含 zip)。
 /// 内部有节点数上限(30000)与深度上限(64),超大视图树只截取前面部分。
-+ (NSArray<NSString *> *)captureIntoDirectory:(NSString *)dir;
+/// UIKit capture runs on main; serialization/writes and completion run on a utility queue.
++ (void)captureIntoDirectory:(NSString *)dir
+                  completion:(void (^)(NSArray<NSString *> *files, NSError * _Nullable error))completion;
 
 @end
 
